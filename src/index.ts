@@ -2,7 +2,6 @@
  * The entrypoint for the action. This file simply imports and runs the action's
  * main logic.
  */
-import { run } from './main.js'
-
+import { input_collector } from "./input-collector.js"
 /* istanbul ignore next */
-run()
+input_collector()

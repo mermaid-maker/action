@@ -11,7 +11,7 @@ const action_input = z.object({
 
 type action_input_type = z.infer<typeof action_input>;
 
-async function input_collector() : Promise<action_input_type | {}>{
+export async function input_collector() : Promise<action_input_type | {}>{
     try{
         const convert_existing = core.getBooleanInput("convert_existing", {required: false});
         const input_dir = core.getInput("input_dir", {required: false});
