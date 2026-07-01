@@ -1,0 +1,14 @@
+---
+config:
+    theme: "base"
+    themeVariables:
+        primaryColor: white
+        primaryBorderColor: black
+        secondaryBorderColor: black
+---
+flowchart
+    model@{shape: rounded, label: "AI Model"}
+    data@{shape: rounded, label: "Data"}
+        model --> |request|data
+        data --> |receive|model
+    model --> Goal@{shape: rounded, label: "Response"}
