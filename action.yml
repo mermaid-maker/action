@@ -52,7 +52,7 @@ runs:
       with: 
         files: |
           ${{steps.get-dir-prefix.outputs.dir_prefix}}**.${{inputs.input_file_extension}}
-        since: 2022-04-30
+        since: "2022-04-30"
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
       env:
         ALL_CHANGED_FILES: ${{steps.changed_files.outputs.all_changed_files}}
