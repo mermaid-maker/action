@@ -39,11 +39,20 @@ runs:
         node-version: 26
     - run: npm install -g @mermaid-js/mermaid-cli
       shell: bash
+    - run: |
+        if [[ ${{inputs.input_dir}} == "all" ]]; then
+          echo "dir_prefix=''" >> "$GITHUB_OUTPUT"
+        else
+          echo "dir_prefix='${{inputs.input_dir}}/'"
+        fi
+      id: get-dir-prefix
+      shell: bash
     - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
       id: changed_files
       with: 
         files: |
-          **.${{inputs.input_file_extension}}
+          ${{steps.get-dir-prefix.outputs.dir_prefix}}**.${{inputs.input_file_extension}}
+        since: 2022-04-30
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
       env:
         ALL_CHANGED_FILES: ${{steps.changed_files.outputs.all_changed_files}}
