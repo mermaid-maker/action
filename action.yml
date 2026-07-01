@@ -32,7 +32,7 @@ runs:
     - uses: "actions/setup-node@main"
       with: 
         node-version: 26
-    - run: npm i --save-dev @mermaid/cli
+    - run: npm install -g @mermaid-js/mermaid-cli
       shell: bash
     - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
       id: changed_files
@@ -42,7 +42,7 @@ runs:
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
       run: |
         for file in ${ALL_CHANGED_FILES}; do
-            aa-exec --profile=chrome npm mmdc -i $file -o "$file".svg -b transparent
+            aa-exec --profile=chrome mmdc -i $file -o "$file".svg -b transparent
         done
       shell: bash
     - uses: EndBug/add-and-commit@v10
