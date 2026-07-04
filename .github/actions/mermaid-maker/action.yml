@@ -41,9 +41,9 @@ runs:
       shell: bash
     - run: |
         if [[ ${{inputs.input_dir}} == "all" ]]; then
-          echo "files-to-check=\"**.${{inputs.input_file_extension}}\"" >> "$GITHUB_OUTPUT"
+          echo "files-to-check=**.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
         else
-          echo "files-to-check=\"${{inputs.input_dir}}/**.${{inputs.input_file_extension}}\"" >> "$GITHUB_OUTPUT"
+          echo "files-to-check=${{inputs.input_dir}}/**.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
         fi
       id: get-files-to-check
       shell: bash

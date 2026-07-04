@@ -10,7 +10,8 @@ jobs:
     job1:
         runs-on: ubuntu-latest
         steps:
-            - uses: "ahmed33033/mermaid-maker@main"
+            - uses: "actions/checkout@main"
+            - uses: "./.github/actions/mermaid-maker"
               with:
                 token: ${{github.token}}
 
