@@ -52,12 +52,20 @@ runs:
       with: 
         files: ${{steps.get-files-to-check.outputs.files-to-check}}
         since: 2022-04-30
+    - run: |
+        if [[ ${{inputs.output_dir}} == "same" ]]; then
+          echo "dir-output=." >> "$GITHUB_OUTPUT"
+        else
+          echo "dir-output=${{inputs.output_dir}}" >> "$GITHUB_OUTPUT"
+        fi
+      id: get-dir-output
+      shell: bash
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
       env:
         ALL_CHANGED_FILES: ${{steps.changed_files.outputs.all_changed_files}}
       run: |
         for file in ${ALL_CHANGED_FILES}; do
-            aa-exec --profile=chrome mmdc -i $file -o "$file".svg -b transparent
+            aa-exec --profile=chrome mmdc -i "$file" -o "${{steps.get-dir-output.outputs.dir-output}}/$file.${{inputs.output_file_extension}}" -b transparent
         done
       shell: bash
     - uses: EndBug/add-and-commit@v10
