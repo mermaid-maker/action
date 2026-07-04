@@ -15,7 +15,7 @@ jobs:
               with:
                 token: ${{github.token}}
                 input_dir: ./beebop
-                output_dir: .output-dir
+                output_dir: ./output-dir
                 output_file_extension: png
 
     
