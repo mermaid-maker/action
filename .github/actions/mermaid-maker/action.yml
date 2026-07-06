@@ -69,7 +69,6 @@ runs:
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
       env:
         ALL_CHANGED_FILES: ${{steps.changed_files.outputs.all_changed_files}}
-        output-file: "${{steps.get-dir-output.outputs.dir-output}}/$(basename -s .${{inputs.input_file_extension}} {$file}).${{inputs.output_file_extension}}"
       run: |
         for file in ${ALL_CHANGED_FILES}; do
           file-base=$(basename -s .${{inputs.input_file_extension}} ${file})
