@@ -52,6 +52,12 @@ runs:
       with: 
         files: ${{steps.get-files-to-check.outputs.files-to-check}}
         since: 2022-04-30
+      # if outpu_dir same:
+        # output file with new suffix
+      # if output_dir diff
+        # extract file name
+        # place under new dir
+        # output file with new suffix 
     - run: |
         if [[ ${{inputs.output_dir}} == "same" ]]; then
           echo "dir-output=." >> "$GITHUB_OUTPUT"
@@ -63,10 +69,18 @@ runs:
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
       env:
         ALL_CHANGED_FILES: ${{steps.changed_files.outputs.all_changed_files}}
+        output-file: "${{steps.get-dir-output.outputs.dir-output}}/$(basename -s .${{inputs.input_file_extension}} {$file}).${{inputs.output_file_extension}}"
       run: |
         for file in ${ALL_CHANGED_FILES}; do
-            aa-exec --profile=chrome mmdc -i "$file" -o "${{steps.get-dir-output.outputs.dir-output}}/$file.${{inputs.output_file_extension}}" -b transparent
+          file-base=$(basename -s .${{inputs.input_file_extension}} ${file})
+          original-file-dir=$(dirname ${file})
+          if [[ ${{inputs.output_dir}} == "same" ]]; then
+            aa-exec --profile=chrome mmdc -i "$file" -o "{$original-file-dir}/{$file-base}.${{inputs.output_file_extension}} -b transparent
+          else
+            aa-exec --profile=chrome mmdc -i "$file" -o "${{inputs.output_dir}}/{$file-base}.${{inputs.output_file_extension}} -b transparent
+          fi
         done
+
       shell: bash
     - uses: EndBug/add-and-commit@v10
       with:
