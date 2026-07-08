@@ -8,7 +8,7 @@ permissions:
 
 jobs:
     job1:
-        runs-on: ubuntu-26.04
+        runs-on: ubuntu-latest
         steps:
             - uses: "actions/checkout@main"
             - uses: "./.github/actions/mermaid-maker"

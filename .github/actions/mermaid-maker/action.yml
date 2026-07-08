@@ -37,8 +37,25 @@ runs:
     - uses: "actions/setup-node@main"
       with: 
         node-version: 26
-    - run: npm install -g @mermaid-js/mermaid-cli
+    - run: PUPPETEER_SKIP_DOWNLOAD='true' npm install -g @mermaid-js/mermaid-cli
       shell: bash
+    - name: Download a single artifact
+      uses: actions/download-artifact@v8.0.1
+      with:
+        name: mermaid-maker-chrome-browser
+      id: chrome-browser-download
+      continue-on-error: true
+    - name: install browser if doesnt exist
+      if: ${{steps.chrome-browser-download.outcome == 'failure'}}
+      run: PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' npx puppeteer browsers install
+      shell: bash
+    - if: ${{steps.chrome-browser-download.outcome == 'failure'}}
+      name: 'Upload Artifact'
+      uses: actions/upload-artifact@v4
+      with:
+        name: mermaid-maker-chrome-browser
+        path: mermaid-maker-chrome-browser
+        retention-days: 7
     - run: |
         if [[ ${{inputs.input_dir}} == "all" ]]; then
           echo "files_to_check=**.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
@@ -66,7 +83,7 @@ runs:
           file_base=$(basename -s .${{inputs.input_file_extension}} ${file})
           original_file_dir=$(dirname ${file})
           if [[ ${{inputs.output_dir}} == "same" ]]; then
-            aa-exec --profile=chrome mmdc -i "$file" -o "${original_file_dir}/${file_base}.${{inputs.output_file_extension}}" -b transparent
+            PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome mmdc -i "$file" -o "${original_file_dir}/${file_base}.${{inputs.output_file_extension}}" -b transparent
           else
             aa-exec --profile=chrome mmdc -i "$file" -o "${{inputs.output_dir}}/${file_base}.${{inputs.output_file_extension}}" -b transparent
           fi
