@@ -39,23 +39,22 @@ runs:
         node-version: 26
     - run: PUPPETEER_SKIP_DOWNLOAD='true' npm install -g @mermaid-js/mermaid-cli
       shell: bash
-    - name: Download a single artifact
-      uses: actions/download-artifact@v8.0.1
+    - name: 'Cache browser'
+      uses: actions/cache/restore@v6.1.0
       with:
-        name: mermaid-maker-chrome-browser
-      id: chrome-browser-download
-      continue-on-error: true
+        key: mermaid-maker-chrome-browser
+        path: mermaid-maker-chrome-browser
+      id: chrome_browser_download
     - name: install browser if doesnt exist
-      if: ${{steps.chrome-browser-download.outcome == 'failure'}}
+      if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true'}}
       run: PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' npx puppeteer browsers install
       shell: bash
-    - if: ${{steps.chrome-browser-download.outcome == 'failure'}}
-      name: 'Upload Artifact'
-      uses: actions/upload-artifact@v4
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true'}}
+      name: 'Save cache'
+      uses: actions/cache/save@v6.1.0
       with:
-        name: mermaid-maker-chrome-browser
+        key: mermaid-maker-chrome-browser
         path: mermaid-maker-chrome-browser
-        retention-days: 7
     - run: |
         if [[ ${{inputs.input_dir}} == "all" ]]; then
           echo "files_to_check=**.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
