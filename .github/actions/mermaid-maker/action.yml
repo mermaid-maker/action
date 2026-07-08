@@ -85,7 +85,7 @@ runs:
           if [[ ${{inputs.output_dir}} == "same" ]]; then
             PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome mmdc -i "$file" -o "${original_file_dir}/${file_base}.${{inputs.output_file_extension}}" -b transparent
           else
-            aa-exec --profile=chrome mmdc -i "$file" -o "${{inputs.output_dir}}/${file_base}.${{inputs.output_file_extension}}" -b transparent
+            PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome mmdc -i "$file" -o "${{inputs.output_dir}}/${file_base}.${{inputs.output_file_extension}}" -b transparent
           fi
         done
 
