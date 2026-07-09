@@ -37,7 +37,7 @@ runs:
     - uses: "actions/setup-node@main"
       with: 
         node-version: 26
-    - run: PUPPETEER_SKIP_DOWNLOAD='true' npm install -g @mermaid-js/mermaid-cli
+    - run: PUPPETEER_SKIP_DOWNLOAD='true' pnpm install -g @mermaid-js/mermaid-cli
       shell: bash
     - name: 'Cache browser'
       uses: actions/cache/restore@v6.1.0
@@ -91,7 +91,7 @@ runs:
       shell: bash
     - uses: EndBug/add-and-commit@v10
       with:
-        message: "feat: Convert .mmd file(s) to svg"
+        message: "feat: Convert .mmd file(s) to ${{inputs.output_file_extension}}"
         # fix this error, its not working as expected
-        add: "**.${{inputs.output_file_extension}} :!mermaid-maker-chrome-browser/**"
+        add: "-- **.${{inputs.output_file_extension}} :!mermaid-maker-chrome-browser/**"
     
