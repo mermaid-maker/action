@@ -7,33 +7,53 @@ inputs:
      i.e. all changed files with input_file_extension across the whole repo.
     required: false
     default: "all"
+
   input_file_extension:
-    description: The extension of the mermaid files. Defaults to "mmd"
+    description: The extension of the mermaid files. 
     required: false
     default: "mmd"
+
   output_dir:
     description: |
       The output directory for generated mermaid files. Defaults to "same",
       i.e. converted files will be placed in the same directory as their source files.
     required: false
     default: "same" 
+
   output_file_extension:
     description: |
-      The output format of the generated mermaid files. Only "svg", "png"and "pdf" are accepted. Defaults to "svg". 
+      The output format of the generated mermaid files. Only "svg", "png"and "pdf" are accepted. 
     required: false
     default: "svg"
-  token: 
-    description: |
-      The PAT (personal access token) used to access and push changes
-      to the github repo. Defaults to `github.token`. 
-    required: false
-    default: ${{github.token}}
+
   commit_message:
     description: |
       The commit message used for commiting mermaid files into the repository. 
       Defaults to: "feat: Convert `input_file_extension` file(s) to `output_file_extension`".
     required: false
     default: ""
+
+  pkg_manager_install_cmd:
+    description: |
+      The node package manager's command to install a package.
+      Examples:
+        - "npm install"   # for npm
+        - "pnpm install"  # for pnpm
+        - "yarn install"  # for yarn
+        - "bun install"   # for bun
+    required: false
+    default: "npm install"
+
+  pkg_manager_run_cmd:
+    description: | 
+      The node package manager's command to run an installed, local package. 
+      Examples:
+        - "npx"   # for npm
+        - "pnpm"  # for pnpm
+        - "yarn dlx"  # for yarn
+        - "bunx"    # for barn
+    required: false
+    default: "npx"
 
 branding:
   icon: arrow-down-circle
@@ -42,10 +62,6 @@ branding:
 runs:
   using: composite
   steps:
-    - uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" # v7.0.0
-      with:
-        token: ${{inputs.token}}
-
     - name: get directory names to check for changes
       run: |
         if [[ ${{inputs.input_dir}} == "all" ]]; then
@@ -63,22 +79,10 @@ runs:
         files: ${{steps.get-files-to-check.outputs.files_to_check}}
         since_last_remote_commit: "true"
 
-    - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
-      uses: "actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e" # v6.4.0
-      with: 
-        node-version: 26
-
-
-    - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
-      uses: "pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271" # v6.0.9
-      with:
-        version: 11
-
-
     # env variable is used to skip browser download, to instead use caching mechanisms
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
-      name: install and setup pnpm
-      run: PUPPETEER_SKIP_DOWNLOAD='true' pnpm install -g @mermaid-js/mermaid-cli@11.16.0
+      name: install mermaid
+      run: PUPPETEER_SKIP_DOWNLOAD='true' ${{inputs.pkg_manager_install_cmd}} @mermaid-js/mermaid-cli@11.16.0
       shell: bash
 
     - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
@@ -93,7 +97,7 @@ runs:
 
     - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.any_changed == 'true'}}
       name: install browser if doesnt exist
-      run: PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' npx puppeteer browsers install
+      run: PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' ${{inputs.pkg_manager_run_cmd}} puppeteer browsers install
       shell: bash
 
     - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.any_changed == 'true'}}
@@ -102,7 +106,6 @@ runs:
       with:
         key: mermaid-maker-chrome-browser-11.16.0
         path: mermaid-maker-chrome-browser
-
 
       # basic though process for next step:
       # if output_dir is the same:
@@ -144,7 +147,7 @@ runs:
             # use user specified output dir
             output_file="${{inputs.output_dir}}/${file_basename}.${{inputs.output_file_extension}}"
             output_file_arr+=("$output_file")
-            PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome mmdc -i "$file" -o "$output_file" -b transparent
+            PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome ${{inputs.pkg_manager_run_cmd}} mmdc -i "$file" -o "$output_file" -b transparent
           fi
         done
 
