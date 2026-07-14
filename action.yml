@@ -90,7 +90,8 @@ runs:
         FILES_TO_CHECK: ${{steps.get-files-to-check.outputs.files_to_check}}
 
 
-    - name: Set pkg_manager run commmand
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+      name: Set pkg_manager run commmand
       run: |
         if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
             echo "pkg_manager_run_cmd=npx" >> "$GITHUB_OUTPUT"
@@ -106,11 +107,46 @@ runs:
       id: set_pkg_manager_run
       shell: bash
 
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+      name: Package manager setup
+      run: |
+        if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
+            echo "Nothing to setup" 
+        elif [[ ${{inputs.pkg_manager}} == 'pnpm' ]]; then
+            pnpm config set --location=project strictDepBuilds false
+        elif [[ ${{inputs.pkg_manager}} == 'yarn' ]]; then
+            echo "Nothing to setup"
+        elif [[ ${{inputs.pkg_manager}} == 'bun' ]]; then
+            echo "Nothing to setup" 
+        else
+            exit 1
+        fi
+      shell: bash
+
+
     # env variable is used to skip browser download, to instead use caching mechanisms
     - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: install mermaid
-      run: PUPPETEER_SKIP_DOWNLOAD='true' CI=true ${{inputs.pkg_manager}} install @mermaid-js/mermaid-cli@11.16.0
+      run: PUPPETEER_SKIP_DOWNLOAD='true' ${{inputs.pkg_manager}} install @mermaid-js/mermaid-cli@11.16.0
       shell: bash
+    
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+      name: Package manager teardown
+      run: |
+        if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
+            echo "Nothing to tear down" 
+        elif [[ ${{inputs.pkg_manager}} == 'pnpm' ]]; then
+            pnpm config set --location=project strictDepBuilds true
+        elif [[ ${{inputs.pkg_manager}} == 'yarn' ]]; then
+            echo "Nothing to tear down"
+        elif [[ ${{inputs.pkg_manager}} == 'bun' ]]; then
+            echo "Nothing to tear down" 
+        else
+            exit 1
+        fi
+      shell: bash
+
+
 
     - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: 'Cache mermaid browser'
