@@ -202,7 +202,7 @@ runs:
             # use env variable to specify custom browser location
             # use aa-exec --profile chrome to sandbox puppeteer's chrome executoin
             # generate output files with transparent background
-            ${{env.MERMAID_ENV}} ${{env.RUN_CMD}} mmdc -i "${file}.${{inputs.input_file_extension}} -o "$output_file" -b transparent
+            ${{env.MERMAID_ENV}} ${{env.RUN_CMD}} mmdc -i "${file}.${{inputs.input_file_extension}}" -o "$output_file" -b transparent
 
           else
             # use user specified output dir
