@@ -95,8 +95,7 @@ runs:
         if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
             echo "pkg_manager_run_cmd=npx" >> "$GITHUB_OUTPUT"
         elif [[ ${{inputs.pkg_manager}} == 'pnpm' ]]; then
-            echo "pkg_manager_run_cmd=pnpm" >> "$GITHUB_OUTPUT"
-            pnpm approve-builds !puppeteer
+            echo "pkg_manager_run_cmd='CI=true pnpm'" >> "$GITHUB_OUTPUT"
         elif [[ ${{inputs.pkg_manager}} == 'yarn' ]]; then
             echo "pkg_manager_run_cmd=yarn dlx" >> "$GITHUB_OUTPUT"
         elif [[ ${{inputs.pkg_manager}} == 'bun' ]]; then
