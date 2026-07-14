@@ -54,19 +54,41 @@ runs:
     - name: get directory names to check for changes
       run: |
         if [[ ${{inputs.input_dir}} == "all" ]]; then
-          echo "files_to_check=**.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
+          echo "files_to_check=**/*.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
         else
-          echo "files_to_check=${{inputs.input_dir}}/**.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
+          echo "files_to_check=${{inputs.input_dir}}/**/*.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
         fi
       id: get-files-to-check
       shell: bash
 
     ## check for changes files and exit early with no changes
-    - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
-      id: changed_files
-      with: 
-        files: ${{steps.get-files-to-check.outputs.files_to_check}}
-        since_last_remote_commit: "true"
+    # TODO: add inputs and change variable names for next steps
+    - id: changed_files
+      name: check for missing/old outputted files
+      run: |
+        shopt -s globstar nullglob
+
+        echo CHANGED_FILES="$(
+
+            for file in ${{env.FILES_TO_CHECK}}; do
+
+                FILE_DIRNAME=$(dirname "$file")
+                FILE_BASENAME=$(basename -s ".${{inputs.input_file_extension}}" "$file")
+
+                if [[ "${FILE_DIRNAME}/${FILE_BASENAME}.${{inputs.output_file_extension}}" -ot "$file" ]]; then
+                
+                    echo "${FILE_DIRNAME}/${FILE_BASENAME}"
+
+                fi
+
+            done
+        )" >> "$GITHUB_OUTPUT"
+
+        shopt -u globstar nullglob
+      shell: bash
+      env:
+        FILES_TO_CHECK: ${{steps.get-files-to-check.outputs.files_to_check}}
+
 
     - name: Set pkg_manager run commmand
       run: |
@@ -86,12 +108,12 @@ runs:
       shell: bash
 
     # env variable is used to skip browser download, to instead use caching mechanisms
-    - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: install mermaid
       run: PUPPETEER_SKIP_DOWNLOAD='true' ${{inputs.pkg_manager}} install @mermaid-js/mermaid-cli@11.16.0
       shell: bash
 
-    - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: 'Cache mermaid browser'
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -101,12 +123,12 @@ runs:
         path: mermaid-maker-chrome-browser
       id: chrome_browser_download
 
-    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: install browser if doesnt exist
       run: PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}} puppeteer browsers install
       shell: bash
 
-    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: 'cache mermaid browser'
       uses: actions/cache/save@v6.1.0
       with:
@@ -121,11 +143,13 @@ runs:
         # place under new dir
         # generate file with new suffix 
       
-    - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
       id: mermaid-gen
       name: Generate mermaid diagrams
       env:
-        ALL_CHANGED_FILES: ${{steps.changed_files.outputs.all_changed_files}}
+        ALL_CHANGED_FILES: ${{steps.changed_files.outputs.CHANGED_FILES}}
+        MERMAID_ENV: PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome
+        RUN_CMD: ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}}
       run: |
 
         # create output_file_array to save all the names of outputted files
@@ -134,26 +158,23 @@ runs:
 
         # generate mermaid diagram for each changed file
         for file in ${ALL_CHANGED_FILES}; do
-          # get the file's basename (just the file's name), and remove final suffix
-          file_basename=$(basename -s ".${{inputs.input_file_extension}}" "${file}")
-          # get the file's dirname (just the dir path)
-          file_dirname=$(dirname "${file}")
 
           if [[ "${{inputs.output_dir}}" == "same" ]]; then
             # keep the same dirname
-            output_file="${file_dirname}/${file_basename}.${{inputs.output_file_extension}}"
+            output_file="${file}.${{inputs.output_file_extension}}"
             output_file_arr+=("$output_file")
 
             # use env variable to specify custom browser location
             # use aa-exec --profile chrome to sandbox puppeteer's chrome executoin
             # generate output files with transparent background
-            PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}} mmdc -i "$file" -o "$output_file" -b transparent
-          else
+            ${{env.MERMAID_ENV}} ${{env.RUN_CMD}} mmdc -i "${file}.${{inputs.input_file_extension}} -o "$output_file" -b transparent
 
+          else
             # use user specified output dir
-            output_file="${{inputs.output_dir}}/${file_basename}.${{inputs.output_file_extension}}"
+            output_file="${{inputs.output_dir}}/${file}.${{inputs.output_file_extension}}"
             output_file_arr+=("$output_file")
-            PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}} mmdc -i "$file" -o "$output_file" -b transparent
+
+            ${{env.MERMAID_ENV}} ${{env.RUN_CMD}} mmdc -i "${file}.${{inputs.input_file_extension}}" -o "$output_file" -b transparent
           fi
         done
 
@@ -164,14 +185,14 @@ runs:
         echo "OUTPUTTED_FILES=$(jq --compact-output --null-input '$ARGS.positional' --args -- "${output_file_arr[@]}")" >> "$GITHUB_OUTPUT"
       shell: bash
     
-    - if: ${{inputs.commit_message == '' && steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{inputs.commit_message == '' && steps.changed_files.outputs.CHANGED_FILES != ''}}
       name: set commit message
       id: COMMIT_MSG
       run: |
         echo "SET_COMMIT_MSG='feat: Convert .${{inputs.input_file_extension}} file(s) to ${{inputs.output_file_extension}}'" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    - if: ${{steps.changed_files.outputs.any_changed == 'true'}}
+    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
       uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321 # v10.0.0
       with:
         message: ${{steps.COMMIT_MSG.outputs.SET_COMMIT_MSG}}
