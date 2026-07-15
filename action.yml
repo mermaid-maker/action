@@ -186,7 +186,6 @@ runs:
         MERMAID_ENV: PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome
         RUN_CMD: ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}}
       run: |
-
           import os
           import json
           from subprocess import run
@@ -195,7 +194,8 @@ runs:
           output_file_arr = []
           mermaid_env = [
               "PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser",
-              "aa-exec --profile=chrome",
+              "aa-exec", 
+              "--profile=chrome",
           ]
 
           # generate mermaid diagram for each changed file
@@ -218,8 +218,7 @@ runs:
                   ]
 
                   run(
-                      ["${{env.RUN_CMD}}"] + mermaid_cmd,
-                      env={"PUPPETEER_CACHE_DIR": "mermaid-maker-chrome-browser"},
+                      mermaid_env + ["${{env.RUN_CMD}}"] + mermaid_cmd,
                   )
 
               else:
@@ -240,13 +239,11 @@ runs:
                   ]
 
                   run(
-                      ["${{env.RUN_CMD}}"] + mermaid_cmd,
-                      env={"PUPPETEER_CACHE_DIR": "mermaid-maker-chrome-browser"},
+                      mermaid_env + ["${{env.RUN_CMD}}"] + mermaid_cmd,
                   )
 
           with open(os.environ["GITHUB_OUTPUT"]) as file:
               print(f"OUTPUTTED_FILES={json.dumps(output_file_arr)}", file=file)
-
 
       shell: python
     
