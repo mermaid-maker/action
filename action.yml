@@ -193,7 +193,7 @@ runs:
 
           output_file_arr = []
           mermaid_env = [
-              "PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec",
+              "aa-exec",
               "--profile=chrome",
           ]
 
@@ -218,6 +218,8 @@ runs:
 
                   run(
                       mermaid_env + ["${{env.RUN_CMD}}"] + mermaid_cmd,
+                      env=os.environ.copy()
+                      | {"PUPPETEER_CACHE_DIR": "mermaid-maker-chrome-browser"},
                   )
 
               else:
@@ -239,6 +241,8 @@ runs:
 
                   run(
                       mermaid_env + ["${{env.RUN_CMD}}"] + mermaid_cmd,
+                      env=os.environ.copy()
+                      | {"PUPPETEER_CACHE_DIR": "mermaid-maker-chrome-browser"},
                   )
 
           with open(os.environ["GITHUB_OUTPUT"]) as file:
