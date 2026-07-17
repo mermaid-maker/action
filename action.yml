@@ -51,45 +51,85 @@ branding:
 runs:
   using: composite
   steps:
-    - name: get directory names to check for changes
+    - name: Get all the input mermaid files
       run: |
-        if [[ ${{inputs.input_dir}} == "all" ]]; then
-          echo "files_to_check=**/*.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
-        else
-          echo "files_to_check=${{inputs.input_dir}}/**/*.${{inputs.input_file_extension}}" >> "$GITHUB_OUTPUT"
-        fi
-      id: get-files-to-check
-      shell: bash
+          from glob import glob
+          if "${{inputs.input_dir}}" == "all":
+              input_files_glob_pattern = "**/*.${{inputs.input_file_extension}}"
+          else:
+              input_files_glob_pattern = "${{inputs.input_dir}}/*.${{inputs.input_file_extension}}"
+
+          input_files = []
+          for file in glob(input_files_glob_pattern, recursive=True):
+              input_files.append(file)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+              print(f"input_files={json.dumps(input_files)}", file=file)
+
+      id: get_input_files
+      shell: python
+
+    - name: Get all the existing, generated mermaid files (if they exist)
+      run: |
+          from glob import glob
+          from pathlib import Path
+          from os.path import basename
+
+          input_files = json.loads("${{env.input_files}}")
+          output_files = []
+
+          if "${{inputs.output_dir}}" == "same":
+              for file in input_files:
+                  output_files.append(
+                      Path(file).with_suffix("${{inputs.output_file_extension}}").as_posix()
+                  )
+          else:
+              for file in input_files:
+                  output_files.append(
+                      (Path("${{inputs.output_dir}}") / basename(file))
+                      .with_suffix("${{inputs.output_file_extension}}")
+                      .as_posix()
+                  )
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+              print(f"output_files={json.dumps(output_files)}", file=file)
+
+      id: get_output_files
+      env:
+        input_files: ${{steps.get_input_files.outputs.input_files}}
+      shell: python
 
     ## check for changes files and exit early with no changes
-    - id: changed_files
-      name: check for missing/old outputted files
+    - name: Get all the input/ouput files that must be (re)generated
       run: |
-        shopt -s globstar nullglob
+          from os.path import getmtime
+          from pathlib import Path
+          import json
 
-        echo CHANGED_FILES="$(
+          input_files = json.loads("${{env.input_files}}")
+          output_files = json.loads("${{env.output_files}}")
 
-            for file in ${{env.FILES_TO_CHECK}}; do
+          input_files_to_regen = []
+          output_files_to_regen = []
 
-                FILE_DIRNAME=$(dirname "$file")
-                FILE_BASENAME=$(basename -s ".${{inputs.input_file_extension}}" "$file")
+          for i in range(len(input_files)):
+              output_file_exists = Path(output_files[i]).exists()
 
-                if [[ "${FILE_DIRNAME}/${FILE_BASENAME}.${{inputs.output_file_extension}}" -ot "$file" ]]; then
-                
-                    echo "${FILE_DIRNAME}/${FILE_BASENAME}"
+              if not output_file_exists or (getmtime(input_files[i]) > getmtime(output_files[i])):
+                  input_files_to_regen.append(input_files[i])
+                  output_files_to_regen.append(output_files[i])
 
-                fi
+          with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+              print(f"input_files_to_regen={json.dumps(input_files_to_regen)}", file=file)
+              print(f"output_files_to_regen={json.dumps(output_files_to_regen)}", file=file)
 
-            done
-        )" >> "$GITHUB_OUTPUT"
-
-        shopt -u globstar nullglob
-      shell: bash
+      shell: python
+      id: get_files_to_regen
       env:
-        FILES_TO_CHECK: ${{steps.get-files-to-check.outputs.files_to_check}}
+        input_files: ${{steps.get_input_files.outputs.input_files}}
+        output_files: ${{steps.get_output_files.outputs.output_files}}
 
-
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: Set pkg_manager run commmand
       run: |
         if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
@@ -106,7 +146,7 @@ runs:
       id: set_pkg_manager_run
       shell: bash
 
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: Package manager setup
       run: |
         if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
@@ -124,13 +164,13 @@ runs:
 
 
     # env variable is used to skip browser download, to instead use caching mechanisms
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: install mermaid
       run: PUPPETEER_SKIP_DOWNLOAD='true' ${{inputs.pkg_manager}} install @mermaid-js/mermaid-cli@11.16.0
       shell: bash
 
 
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: 'Cache mermaid browser'
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -140,12 +180,12 @@ runs:
         path: mermaid-maker-chrome-browser
       id: chrome_browser_download
 
-    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: install browser if doesnt exist
       run: PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}} puppeteer browsers install
       shell: bash
 
-    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: 'cache mermaid browser'
       uses: actions/cache/save@v6.1.0
       with:
@@ -160,20 +200,19 @@ runs:
         # place under new dir
         # generate file with new suffix 
       
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       id: mermaid-gen
       name: Generate mermaid diagrams
       env:
-        ALL_CHANGED_FILES: ${{steps.changed_files.outputs.CHANGED_FILES}}
+        ALL_CHANGED_FILES: ${{steps.get_files_to_regen.outputs.input_files_to_regen}}
         MERMAID_ENV: PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec --profile=chrome
         RUN_CMD: ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}}
       run: |
-          import os
           import json
-          from subprocess import run
-          from pathlib import Path
 
-          output_file_arr = []
+          input_files_to_regen = json.loads("${{env.input_files_to_regen}}")
+          output_files_to_regen = json.loads("${{env.output_files_to_regen}}")
+
           mermaid_env = [
               "env",
               "PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser",
@@ -182,24 +221,13 @@ runs:
           ]
 
           # generate mermaid diagram for each changed file
-          for file in "${{env.ALL_CHANGED_FILES}}".split("\n"):
-              if "${{inputs.output_dir}}" == "same":
-                  output_file = Path(file).with_suffix("${{inputs.output_file_extension}}")
-                  output_file_arr.append(output_file)
-
-              else:
-                  # use user specified output dir
-                  output_file = (Path("${{inputs.output_dir}}") / file).with_suffix(
-                      "${{inputs.output_file_extension}}"
-                  )
-                  output_file_arr.append(output_file)
-
+          for i in range(len(input_files_to_regen)):
               mermaid_cmd = [
                   "mmdc",
                   "-i",
-                  file + ".${{inputs.input_file_extension}}",
+                  input_files_to_regen[i],
                   "-o",
-                  output_file,
+                  output_files_to_regen[i],
                   "-b",
                   "transparent",
               ]
@@ -207,28 +235,24 @@ runs:
               run(
                   mermaid_env + ["${{env.RUN_CMD}}"] + mermaid_cmd,
               )
-
-          with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-              print(f"OUTPUTTED_FILES={json.dumps(output_file_arr)}", file=file)
-
       shell: python
     
-    - if: ${{inputs.commit_message == '' && steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{inputs.commit_message == '' && steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: set commit message
       id: COMMIT_MSG
       run: |
         echo "SET_COMMIT_MSG='feat: Convert .${{inputs.input_file_extension}} file(s) to ${{inputs.output_file_extension}}'" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321 # v10.0.0
       with:
         message: ${{steps.COMMIT_MSG.outputs.SET_COMMIT_MSG}}
         # the github action will run git add for each file in the array
-        add: ${{steps.mermaid-gen.outputs.OUTPUTTED_FILES}}
+        add: ${{steps.get_files_to_regen.outputs.output_files_to_regen}}
 
 
-    - if: ${{steps.changed_files.outputs.CHANGED_FILES != ''}}
+    - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != ''}}
       name: Package manager teardown
       run: |
         if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
