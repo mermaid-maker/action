@@ -57,7 +57,7 @@ runs:
           import os
           import json
 
-          if str(${{inputs.input_dir}}) == "all":
+          if '${{inputs.input_dir}}' == "all":
               input_files_glob_pattern = '**/*.${{inputs.input_file_extension}}'
           else:
               input_files_glob_pattern = '${{inputs.input_dir}}/*.${{inputs.input_file_extension}}'
