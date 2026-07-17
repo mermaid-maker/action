@@ -57,17 +57,17 @@ runs:
           import os
           import json
 
-          if "${{inputs.input_dir}}" == "all":
-              input_files_glob_pattern = "**/*.${{inputs.input_file_extension}}"
+          if str(${{inputs.input_dir}}) == "all":
+              input_files_glob_pattern = str(**/*.${{inputs.input_file_extension}})
           else:
-              input_files_glob_pattern = "${{inputs.input_dir}}/*.${{inputs.input_file_extension}}"
+              input_files_glob_pattern = str(inputs.input_dir}}/*.${{inputs.input_file_extension}})
 
           input_files = []
           for file in glob(input_files_glob_pattern, recursive=True):
               input_files.append(file)
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-              print(f"input_files={json.dumps(input_files)}", file=file)
+              print("input_files=" + str(json.dumps(input_files)), file=file)
 
       id: get_input_files
       shell: python
@@ -80,19 +80,19 @@ runs:
           import os
           import json
 
-          input_files = json.loads("${{env.input_files}}")
+          input_files = json.loads(${{env.input_files}})
           output_files = []
 
-          if "${{inputs.output_dir}}" == "same":
+          if str(${{inputs.output_dir}}) == "same":
               for file in input_files:
                   output_files.append(
-                      Path(file).with_suffix("${{inputs.output_file_extension}}").as_posix()
+                      Path(file).with_suffix(str(${{inputs.output_file_extension}})).as_posix()
                   )
           else:
               for file in input_files:
                   output_files.append(
-                      (Path("${{inputs.output_dir}}") / basename(file))
-                      .with_suffix("${{inputs.output_file_extension}}")
+                      (Path(str(${{inputs.output_dir}})) / basename(file))
+                      .with_suffix(str(${{inputs.output_file_extension}}))
                       .as_posix()
                   )
 
@@ -112,8 +112,8 @@ runs:
           from pathlib import Path
           import json
 
-          input_files = json.loads("${{env.input_files}}")
-          output_files = json.loads("${{env.output_files}}")
+          input_files = json.loads(${{env.input_files}})
+          output_files = json.loads(${{env.output_files}})
 
           input_files_to_regen = []
           output_files_to_regen = []
@@ -216,8 +216,8 @@ runs:
       run: |
           import json
 
-          input_files_to_regen = json.loads("${{env.input_files_to_regen}}")
-          output_files_to_regen = json.loads("${{env.output_files_to_regen}}")
+          input_files_to_regen = json.loads(${{env.input_files_to_regen}})
+          output_files_to_regen = json.loads(${{env.output_files_to_regen}})
 
           mermaid_env = [
               "env",
