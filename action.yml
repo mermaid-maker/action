@@ -58,16 +58,16 @@ runs:
           import json
 
           if str(${{inputs.input_dir}}) == "all":
-              input_files_glob_pattern = str(**/*.${{inputs.input_file_extension}})
+              input_files_glob_pattern = '**/*.${{inputs.input_file_extension}}'
           else:
-              input_files_glob_pattern = str(inputs.input_dir}}/*.${{inputs.input_file_extension}})
+              input_files_glob_pattern = '${{inputs.input_dir}}/*.${{inputs.input_file_extension}}'
 
           input_files = []
           for file in glob(input_files_glob_pattern, recursive=True):
               input_files.append(file)
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-              print("input_files=" + str(json.dumps(input_files)), file=file)
+              print('input_files=' + json.dumps(input_files), file=file)
 
       id: get_input_files
       shell: python
@@ -83,21 +83,21 @@ runs:
           input_files = json.loads(${{env.input_files}})
           output_files = []
 
-          if str(${{inputs.output_dir}}) == "same":
+          if '${{inputs.output_dir}}' == 'same':
               for file in input_files:
                   output_files.append(
-                      Path(file).with_suffix(str(${{inputs.output_file_extension}})).as_posix()
+                      Path(file).with_suffix('${{inputs.output_file_extension}}').as_posix()
                   )
           else:
               for file in input_files:
                   output_files.append(
-                      (Path(str(${{inputs.output_dir}})) / basename(file))
-                      .with_suffix(str(${{inputs.output_file_extension}}))
+                      (Path('${{inputs.output_dir}}') / basename(file))
+                      .with_suffix('${{inputs.output_file_extension}}')
                       .as_posix()
                   )
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-              print(f"output_files={json.dumps(output_files)}", file=file)
+              print('output_files=' + json.dumps(output_files), file=file)
 
       id: get_output_files
       env:
@@ -126,8 +126,8 @@ runs:
                   output_files_to_regen.append(output_files[i])
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-              print(f"input_files_to_regen={json.dumps(input_files_to_regen)}", file=file)
-              print(f"output_files_to_regen={json.dumps(output_files_to_regen)}", file=file)
+              print('input_files_to_regen=' + json.dumps(input_files_to_regen), file=file)
+              print('output_files_to_regen=' + json.dumps(output_files_to_regen), file=file)
 
       shell: python
       id: get_files_to_regen
@@ -239,7 +239,7 @@ runs:
               ]
 
               run(
-                  mermaid_env + ["${{env.RUN_CMD}}"] + mermaid_cmd,
+                  mermaid_env + ['${{env.RUN_CMD}}'] + mermaid_cmd,
               )
       shell: python
     
