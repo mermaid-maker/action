@@ -55,6 +55,7 @@ runs:
       run: |
           from glob import glob
           import os
+          import json
 
           if "${{inputs.input_dir}}" == "all":
               input_files_glob_pattern = "**/*.${{inputs.input_file_extension}}"
@@ -77,6 +78,7 @@ runs:
           from pathlib import Path
           from os.path import basename
           import os
+          import json
 
           input_files = json.loads("${{env.input_files}}")
           output_files = []
