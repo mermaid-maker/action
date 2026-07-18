@@ -138,36 +138,44 @@ runs:
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Set pkg_manager run commmand
       run: |
-        if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
-            echo "pkg_manager_run_cmd=npx" >> "$GITHUB_OUTPUT"
-        elif [[ ${{inputs.pkg_manager}} == 'pnpm' ]]; then
-            echo "pkg_manager_run_cmd=pnpm" >> "$GITHUB_OUTPUT"
-        elif [[ ${{inputs.pkg_manager}} == 'yarn' ]]; then
-            echo "pkg_manager_run_cmd=yarn dlx" >> "$GITHUB_OUTPUT"
-        elif [[ ${{inputs.pkg_manager}} == 'bun' ]]; then
-            echo "pkg_manager_run_cmd=bunx" >> "$GITHUB_OUTPUT"
-        else
-            exit 1
-        fi
+          from subprocess import run
+          
+          pkg_manager_run_cmd = ""
+          if "${{inputs.pkg_manager}}" == "npm":
+              pkg_manager_run_cmd = "npx"
+          elif "${{inputs.pkg_manager}}" == "pnpm":
+              pkg_manager_run_cmd = "pnpm"
+          elif "${{inputs.pkg_manager}}" == "yarn":
+              pkg_manager_run_cmd = "yarn dlx"
+          elif "${{inputs.pkg_manager}}" == "bun":
+              pkg_manager_run_cmd = "bunx"
+          else:
+              run(["exit", "1"])
+          
+          with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+              print("pkg_manager_run_cmd=" + pkg_manager_run_cmd, file=file)
+      
       id: set_pkg_manager_run
-      shell: bash
+      shell: python
 
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Package manager setup
       run: |
-        if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
-            echo "Nothing to setup" 
-        elif [[ ${{inputs.pkg_manager}} == 'pnpm' ]]; then
-            pnpm config set --location=project strictDepBuilds false
-        elif [[ ${{inputs.pkg_manager}} == 'yarn' ]]; then
-            echo "Nothing to setup"
-        elif [[ ${{inputs.pkg_manager}} == 'bun' ]]; then
-            echo "Nothing to setup" 
-        else
-            exit 1
-        fi
-      shell: bash
-
+          from subprocess import run
+          
+          pkg_manager_run_cmd = ""
+          if "${{inputs.pkg_manager}}" == "npm":
+            print("Nothing to setup")
+          elif "${{inputs.pkg_manager}}" == "pnpm":
+            run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "false"])
+          elif "${{inputs.pkg_manager}}" == "yarn":
+            print("Nothing to setup")
+          elif "${{inputs.pkg_manager}}" == "bun":
+            print("Nothing to setup")
+          else:
+              run(["exit", "1"])
+          
+      shell: python
 
     # env variable is used to skip browser download, to instead use caching mechanisms
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
@@ -246,9 +254,10 @@ runs:
       shell: python
     
     - if: ${{inputs.commit_message == '' && steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
-      name: set commit message
+      name: Set commit message
       id: COMMIT_MSG
       run: |
+        ### Set commit message
         echo "SET_COMMIT_MSG='feat: Convert .${{inputs.input_file_extension}} file(s) to ${{inputs.output_file_extension}}'" >> "$GITHUB_OUTPUT"
       shell: bash
 
@@ -263,15 +272,18 @@ runs:
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Package manager teardown
       run: |
-        if [[ ${{inputs.pkg_manager}} == 'npm' ]]; then
-            echo "Nothing to tear down" 
-        elif [[ ${{inputs.pkg_manager}} == 'pnpm' ]]; then
-            pnpm config set --location=project strictDepBuilds true
-        elif [[ ${{inputs.pkg_manager}} == 'yarn' ]]; then
-            echo "Nothing to tear down"
-        elif [[ ${{inputs.pkg_manager}} == 'bun' ]]; then
-            echo "Nothing to tear down" 
-        else
-            exit 1
-        fi
-      shell: bash
+          ### Package manager teardown
+          from subprocess import run
+          
+          pkg_manager_run_cmd = ""
+          if "${{inputs.pkg_manager}}" == "npm":
+            print("Nothing to teardown")
+          elif "${{inputs.pkg_manager}}" == "pnpm":
+            run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "true"])
+          elif "${{inputs.pkg_manager}}" == "yarn":
+            print("Nothing to teardown")
+          elif "${{inputs.pkg_manager}}" == "bun":
+            print("Nothing to teardown")
+          else:
+              run(["exit", "1"])
+      shell: pyhton
