@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "sync_left": "tsx sync_left",
-    "sync_right": "tsx sync_right"
+    "bundle_to_action": "tsx bundle_to_action"
   },
   "keywords": [],
   "author": "",

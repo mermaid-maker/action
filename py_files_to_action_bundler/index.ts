@@ -22,6 +22,7 @@ interface GithubAction {
 
 const doc = load(readFileSync('../action.yml', 'utf8')) as GithubAction
 
+// utility to sync action to python files if accidentally editted action instaed of files
 export function sync_left() {
     const steps = doc["runs"]["steps"]
     for (const step of steps) {
@@ -34,13 +35,13 @@ export function sync_left() {
     }
 }
 
-export function sync_right() {
+export function bundle_to_action() {
     const steps = doc["runs"]["steps"]
     for (const step of steps) {
         if (step['shell'] === "python") {
             const py_id = step['id']
             try {
-                step['run'] = readFileSync(`../python_snippets/${py_id}.py`, "utf-8")
+                step['run'] = readFileSync(`../py_files/${py_id}.py`, "utf-8")
             }
             catch (error) {
                 if (error instanceof Error) {
