@@ -1,25 +1,25 @@
 ### Get all the existing, generated mermaid files (if they exist)
-from glob import glob
+
 from pathlib import Path
 from os.path import basename
-import os
+from os import environ
 import json
 
-input_files = json.loads('${{env.input_files}}')
+input_files = json.loads(environ["INPUT_FILES"])
 output_files = []
 
-if '${{inputs.output_dir}}' == 'same':
+if environ["OUTPUT_DIR"] == "same":
     for file in input_files:
         output_files.append(
-            Path(file).with_suffix('.${{inputs.output_file_extension}}').as_posix()
+            Path(file).with_suffix(f".{environ['OUTPUT_FILE_EXTENSION']}").as_posix()
         )
 else:
     for file in input_files:
         output_files.append(
-            (Path('${{inputs.output_dir}}') / basename(file))
-            .with_suffix('.${{inputs.output_file_extension}}')
+            (Path(environ["OUTPUT_DIR"]) / basename(file))
+            .with_suffix(f".{environ['OUTPUT_FILE_EXTENSION']}")
             .as_posix()
         )
 
-with open(os.environ["GITHUB_OUTPUT"], "a") as file:
-    print('output_files=' + json.dumps(output_files), file=file)
+with open(environ["GITHUB_OUTPUT"], "a") as file:
+    print(f"output_files={json.dumps(output_files)}", file=file)
