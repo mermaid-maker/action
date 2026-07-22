@@ -1,9 +1,11 @@
 ### Generate mermaid diagrams
+
 import json
 from subprocess import run
+from os import environ
 
-input_files_to_regen = json.loads('${{env.input_files_to_regen}}')
-output_files_to_regen = json.loads('${{env.output_files_to_regen}}')
+input_files_to_regen = json.loads(environ["INPUT_FILES_TO_REGEN"])
+output_files_to_regen = json.loads(environ["OUTPUT_FILES_TO_REGEN"])
 
 mermaid_env = [
     "env",
@@ -25,5 +27,5 @@ for i in range(len(input_files_to_regen)):
     ]
 
     run(
-        mermaid_env + ['${{env.RUN_CMD}}'] + mermaid_cmd,
+        mermaid_env + [environ["RUN_CMD"]] + mermaid_cmd,
     )

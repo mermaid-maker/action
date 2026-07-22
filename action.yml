@@ -113,7 +113,7 @@ runs:
     - name: Get all the input/ouput files that must be (re)generated
       run: |
         ### Get all the input/ouput files that must be (re)generated
-        # woooho
+
         from os.path import getmtime
         from os import environ
         from pathlib import Path
@@ -138,28 +138,31 @@ runs:
       shell: python
       id: get_files_to_regen
       env:
-        input_files: ${{steps.get_input_files.outputs.input_files}}
-        output_files: ${{steps.get_output_files.outputs.output_files}}
+        INPUT_FILES: ${{steps.get_input_files.outputs.input_files}}
+        OUTPUT_FILES: ${{steps.get_output_files.outputs.output_files}}
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Set pkg_manager run commmand
+      env:
+        PKG_MANAGER: ${{inputs.pkg_manager}}
       run: |
         ### Set pkg_manager run commmand
+
         from subprocess import run
-        import os
+        from os import environ
 
         pkg_manager_run_cmd = ""
-        if "${{inputs.pkg_manager}}" == "npm":
+        if environ["PKG_MANAGER"] == "npm":
             pkg_manager_run_cmd = "npx"
-        elif "${{inputs.pkg_manager}}" == "pnpm":
+        elif environ["PKG_MANAGER"] == "pnpm":
             pkg_manager_run_cmd = "pnpm"
-        elif "${{inputs.pkg_manager}}" == "yarn":
+        elif environ["PKG_MANAGER"] == "yarn":
             pkg_manager_run_cmd = "yarn dlx"
-        elif "${{inputs.pkg_manager}}" == "bun":
+        elif environ["PKG_MANAGER"] == "bun":
             pkg_manager_run_cmd = "bunx"
         else:
             run(["exit", "1"])
 
-        with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+        with open(environ["GITHUB_OUTPUT"], "a") as file:
             print("pkg_manager_run_cmd=" + pkg_manager_run_cmd, file=file)
       id: set_pkg_manager_run
       shell: python
@@ -167,21 +170,26 @@ runs:
       name: Package manager setup
       run: |
         ### Package manager setup
+
         from subprocess import run
+        from os import environ
 
         pkg_manager_run_cmd = ""
-        if "${{inputs.pkg_manager}}" == "npm":
-          print("Nothing to setup")
-        elif "${{inputs.pkg_manager}}" == "pnpm":
-          run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "false"])
-        elif "${{inputs.pkg_manager}}" == "yarn":
-          print("Nothing to setup")
-        elif "${{inputs.pkg_manager}}" == "bun":
-          print("Nothing to setup")
+
+        if environ["PKG_MANAGER"] == "npm":
+            print("Nothing to setup")
+        elif environ["PKG_MANAGER"] == "pnpm":
+            run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "false"])
+        elif environ["PKG_MANAGER"] == "yarn":
+            print("Nothing to setup")
+        elif environ["PKG_MANAGER"] == "bun":
+            print("Nothing to setup")
         else:
             run(["exit", "1"])
       shell: python
       id: pkg_manager_setup
+      env:
+        PKG_MANAGER: ${{inputs.pkg_manager}}
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: install mermaid
       run: >
@@ -220,19 +228,18 @@ runs:
       id: mermaid_gen
       name: Generate mermaid diagrams
       env:
-        input_files_to_regen: ${{steps.get_files_to_regen.outputs.input_files_to_regen}}
-        output_files_to_regen: ${{steps.get_files_to_regen.outputs.output_files_to_regen}}
-        MERMAID_ENV: >-
-          PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser aa-exec
-          --profile=chrome
+        INPUT_FILES_TO_REGEN: ${{steps.get_files_to_regen.outputs.input_files_to_regen}}
+        OUTPUT_FILES_TO_REGEN: ${{steps.get_files_to_regen.outputs.output_files_to_regen}}
         RUN_CMD: ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}}
       run: |
         ### Generate mermaid diagrams
+
         import json
         from subprocess import run
+        from os import environ
 
-        input_files_to_regen = json.loads('${{env.input_files_to_regen}}')
-        output_files_to_regen = json.loads('${{env.output_files_to_regen}}')
+        input_files_to_regen = json.loads(environ["INPUT_FILES_TO_REGEN"])
+        output_files_to_regen = json.loads(environ["OUTPUT_FILES_TO_REGEN"])
 
         mermaid_env = [
             "env",
@@ -254,7 +261,7 @@ runs:
             ]
 
             run(
-                mermaid_env + ['${{env.RUN_CMD}}'] + mermaid_cmd,
+                mermaid_env + [environ["RUN_CMD"]] + mermaid_cmd,
             )
       shell: python
     - if: >-
@@ -275,19 +282,24 @@ runs:
         add: ${{steps.get_files_to_regen.outputs.output_files_to_regen}}
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Package manager teardown
+      env:
+        PKG_MANAGER: ${{inputs.pkg_manager}}
       run: |
         ### Package manager teardown
+
         from subprocess import run
+        from os import environ
 
         pkg_manager_run_cmd = ""
-        if "${{inputs.pkg_manager}}" == "npm":
-          print("Nothing to teardown")
-        elif "${{inputs.pkg_manager}}" == "pnpm":
-          run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "true"])
-        elif "${{inputs.pkg_manager}}" == "yarn":
-          print("Nothing to teardown")
-        elif "${{inputs.pkg_manager}}" == "bun":
-          print("Nothing to teardown")
+
+        if environ["PKG_MANAGER"] == "npm":
+            print("Nothing to teardown")
+        elif environ["PKG_MANAGER"] == "pnpm":
+            run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "true"])
+        elif environ["PKG_MANAGER"] == "yarn":
+            print("Nothing to teardown")
+        elif environ["PKG_MANAGER"] == "bun":
+            print("Nothing to teardown")
         else:
             run(["exit", "1"])
       shell: python
