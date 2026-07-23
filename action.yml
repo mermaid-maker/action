@@ -12,32 +12,25 @@ inputs:
     required: false
     default: mmd
   output_dir:
-    description: >
+    description: |
       The output directory for generated mermaid files. Defaults to "same",
-
-      i.e. converted files will be placed in the same directory as their source
-      files.
+      i.e. converted files will be placed in the same directory as their source files.
     required: false
     default: same
   output_file_extension:
-    description: >
-      The output format of the generated mermaid files. Only "svg", "png"and
-      "pdf" are accepted. 
+    description: |
+      The output format of the generated mermaid files. Only "svg", "png"and "pdf" are accepted. 
     required: false
     default: svg
   commit_message:
-    description: >
+    description: |
       The commit message used for commiting mermaid files into the repository. 
-
-      Defaults to: "feat: Convert `input_file_extension` file(s) to
-      `output_file_extension`".
+      Defaults to: "feat: Convert `input_file_extension` file(s) to `output_file_extension`".
     required: false
     default: ''
   pkg_manager:
-    description: >
-      The node package manager to use. Make sure it's setup before using this
-      action.
-
+    description: |
+      The node package manager to use. Make sure it's setup before using this action.
       Currently, only the following pkg_managers are accepted:
         - "npm"   
         - "pnpm"  
@@ -53,25 +46,30 @@ runs:
   steps:
     - name: Get all the input mermaid files
       run: |
-        ### Get all the input mermaid files
-
         from glob import glob
         from os import environ
         import json
 
-        if environ["INPUT_DIR"] == "all":
-            input_files_glob_pattern = f"**/*.{environ['INPUT_FILE_EXTENSION']}"
-        else:
-            input_files_glob_pattern = (
-                f"{environ['INPUT_DIR']}/*.{environ['INPUT_FILE_EXTENSION']}"
+
+        def get_input_files(input_dir, input_file_extension, output_file):
+
+            if input_dir == "all":
+                input_files_glob_pattern = f"**/*.{input_file_extension}"
+            else:
+                input_files_glob_pattern = f"{input_dir}/*.{input_file_extension}"
+
+            input_files = []
+            for file in glob(input_files_glob_pattern, recursive=True):
+                input_files.append(file)
+
+            with open(output_file, "a") as file:
+                print("input_files=" + json.dumps(input_files), file=file)
+
+
+        if __name__ == "__main__":
+            get_input_files(
+                environ["INPUT_DIR"], environ["INPUT_FILE_EXTENSION"], environ["GITHUB_OUTPUT"]
             )
-
-        input_files = []
-        for file in glob(input_files_glob_pattern, recursive=True):
-            input_files.append(file)
-
-        with open(environ["GITHUB_OUTPUT"], "a") as file:
-            print("input_files=" + json.dumps(input_files), file=file)
       id: get_input_files
       shell: python
       env:
@@ -79,31 +77,39 @@ runs:
         INPUT_FILE_EXTENSION: ${{inputs.input_file_extension}}
     - name: Get all the existing, generated mermaid files (if they exist)
       run: |
-        ### Get all the existing, generated mermaid files (if they exist)
-
         from pathlib import Path
         from os.path import basename
         from os import environ
         import json
 
-        input_files = json.loads(environ["INPUT_FILES"])
-        output_files = []
 
-        if environ["OUTPUT_DIR"] == "same":
-            for file in input_files:
-                output_files.append(
-                    Path(file).with_suffix(f".{environ['OUTPUT_FILE_EXTENSION']}").as_posix()
-                )
-        else:
-            for file in input_files:
-                output_files.append(
-                    (Path(environ["OUTPUT_DIR"]) / basename(file))
-                    .with_suffix(f".{environ['OUTPUT_FILE_EXTENSION']}")
-                    .as_posix()
-                )
+        def get_output_files(input_files, output_dir, output_file_extension, output_file):
+            output_files = []
 
-        with open(environ["GITHUB_OUTPUT"], "a") as file:
-            print(f"output_files={json.dumps(output_files)}", file=file)
+            if output_dir == "same":
+                for file in input_files:
+                    output_files.append(
+                        Path(file).with_suffix(f".{output_file_extension}").as_posix()
+                    )
+            else:
+                for file in input_files:
+                    output_files.append(
+                        (Path(output_dir) / basename(file))
+                        .with_suffix(f".{output_file_extension}")
+                        .as_posix()
+                    )
+
+            with open(output_file, "a") as file:
+                print(f"output_files={json.dumps(output_files)}", file=file)
+
+
+        if __name__ == "__main__":
+            get_output_files(
+                json.loads(environ["INPUT_FILES"]),
+                environ["OUTPUT_DIR"],
+                environ["OUTPUT_FILE_EXTENSION"],
+                environ["GITHUB_OUTPUT"],
+            )
       id: get_output_files
       env:
         INPUT_FILES: ${{steps.get_input_files.outputs.input_files}}
@@ -112,29 +118,36 @@ runs:
       shell: python
     - name: Get all the input/ouput files that must be (re)generated
       run: |
-        ### Get all the input/ouput files that must be (re)generated
-
         from os.path import getmtime
         from os import environ
         from pathlib import Path
         import json
 
-        input_files = json.loads(environ["INPUT_FILES"])
-        output_files = json.loads(environ["OUTPUT_FILES"])
 
-        input_files_to_regen = []
-        output_files_to_regen = []
+        def get_files_to_regen(input_files, output_files, output_file):
+            input_files_to_regen = []
+            output_files_to_regen = []
 
-        for i in range(len(input_files)):
-            output_file_exists = Path(output_files[i]).exists()
+            for i in range(len(input_files)):
+                output_file_exists = Path(output_files[i]).exists()
 
-            if not output_file_exists or (getmtime(input_files[i]) > getmtime(output_files[i])):
-                input_files_to_regen.append(input_files[i])
-                output_files_to_regen.append(output_files[i])
+                if not output_file_exists or (
+                    getmtime(input_files[i]) > getmtime(output_files[i])
+                ):
+                    input_files_to_regen.append(input_files[i])
+                    output_files_to_regen.append(output_files[i])
 
-        with open(environ["GITHUB_OUTPUT"], "a") as file:
-            print("input_files_to_regen=" + json.dumps(input_files_to_regen), file=file)
-            print("output_files_to_regen=" + json.dumps(output_files_to_regen), file=file)
+            with open(output_file, "a") as file:
+                print("input_files_to_regen=" + json.dumps(input_files_to_regen), file=file)
+                print("output_files_to_regen=" + json.dumps(output_files_to_regen), file=file)
+
+
+        if __name__ == "__main__":
+            get_files_to_regen(
+                json.loads(environ["INPUT_FILES"]),
+                json.loads(environ["OUTPUT_FILES"]),
+                environ["GITHUB_OUTPUT"],
+            )
       shell: python
       id: get_files_to_regen
       env:
@@ -169,34 +182,34 @@ runs:
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Package manager setup
       run: |
-        ### Package manager setup
-
         from subprocess import run
         from os import environ
 
-        pkg_manager_run_cmd = ""
 
-        if environ["PKG_MANAGER"] == "npm":
-            print("Nothing to setup")
-        elif environ["PKG_MANAGER"] == "pnpm":
-            run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "false"])
-        elif environ["PKG_MANAGER"] == "yarn":
-            print("Nothing to setup")
-        elif environ["PKG_MANAGER"] == "bun":
-            print("Nothing to setup")
-        else:
-            run(["exit", "1"])
+        def setup_pkg_manager(pkg_manager):
+            if pkg_manager == "npm":
+                print("Nothing to setup")
+            elif pkg_manager == "pnpm":
+                run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "false"])
+            elif pkg_manager == "yarn":
+                print("Nothing to setup")
+            elif pkg_manager == "bun":
+                print("Nothing to setup")
+            else:
+                run(["exit", "1"])
+
+
+        if __name__ == "__main__":
+            setup_pkg_manager(environ["PKG_MANAGER"])
       shell: python
       id: pkg_manager_setup
       env:
         PKG_MANAGER: ${{inputs.pkg_manager}}
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: install mermaid
-      run: >
+      run: |
         ### install mermaid
-
-        PUPPETEER_SKIP_DOWNLOAD='true' ${{inputs.pkg_manager}} install
-        @mermaid-js/mermaid-cli@11.16.0
+        PUPPETEER_SKIP_DOWNLOAD='true' ${{inputs.pkg_manager}} install @mermaid-js/mermaid-cli@11.16.0
       shell: bash
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Cache mermaid browser
@@ -205,20 +218,13 @@ runs:
         key: mermaid-maker-chrome-browser-11.16.0
         path: mermaid-maker-chrome-browser
       id: chrome_browser_download
-    - if: >-
-        ${{steps.chrome_browser_download.outputs.cache-hit != 'true' &&
-        steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: install browser if doesnt exist
-      run: >
+      run: |
         ### install browser if doesnt exist
-
-        PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser'
-        ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}} puppeteer
-        browsers install
+        PUPPETEER_CACHE_DIR='./mermaid-maker-chrome-browser' ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}} puppeteer browsers install
       shell: bash
-    - if: >-
-        ${{steps.chrome_browser_download.outputs.cache-hit != 'true' &&
-        steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
+    - if: ${{steps.chrome_browser_download.outputs.cache-hit != 'true' && steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: cache mermaid browser
       uses: actions/cache/save@v6.1.0
       with:
@@ -232,48 +238,50 @@ runs:
         OUTPUT_FILES_TO_REGEN: ${{steps.get_files_to_regen.outputs.output_files_to_regen}}
         RUN_CMD: ${{steps.set_pkg_manager_run.outputs.pkg_manager_run_cmd}}
       run: |
-        ### Generate mermaid diagrams
-
         import json
         from subprocess import run
         from os import environ
 
-        input_files_to_regen = json.loads(environ["INPUT_FILES_TO_REGEN"])
-        output_files_to_regen = json.loads(environ["OUTPUT_FILES_TO_REGEN"])
 
-        mermaid_env = [
-            "env",
-            "PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser",
-            "aa-exec",
-            "--profile=chrome",
-        ]
+        def gen_mermaid(input_files_to_regen, output_files_to_regen, run_cmd):
 
-        # generate mermaid diagram for each changed file
-        for i in range(len(input_files_to_regen)):
-            mermaid_cmd = [
-                "mmdc",
-                "-i",
-                input_files_to_regen[i],
-                "-o",
-                output_files_to_regen[i],
-                "-b",
-                "transparent",
+            mermaid_env = [
+                "env",
+                "PUPPETEER_CACHE_DIR=mermaid-maker-chrome-browser",
+                "aa-exec",
+                "--profile=chrome",
             ]
 
-            run(
-                mermaid_env + [environ["RUN_CMD"]] + mermaid_cmd,
+            # generate mermaid diagram for each changed file
+            for i in range(len(input_files_to_regen)):
+                mermaid_cmd = [
+                    "mmdc",
+                    "-i",
+                    input_files_to_regen[i],
+                    "-o",
+                    output_files_to_regen[i],
+                    "-b",
+                    "transparent",
+                ]
+
+                run(
+                    mermaid_env + [run_cmd] + mermaid_cmd,
+                )
+
+
+        if __name__ == "__main__":
+            gen_mermaid(
+                json.loads(environ["INPUT_FILES_TO_REGEN"]),
+                json.loads(environ["OUTPUT_FILES_TO_REGEN"]),
+                environ["RUN_CMD"],
             )
       shell: python
-    - if: >-
-        ${{inputs.commit_message == '' &&
-        steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
+    - if: ${{inputs.commit_message == '' && steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       name: Set commit message
       id: COMMIT_MSG
-      run: >
+      run: |
         ### Set commit message
-
-        echo "SET_COMMIT_MSG='feat: Convert .${{inputs.input_file_extension}}
-        file(s) to ${{inputs.output_file_extension}}'" >> "$GITHUB_OUTPUT"
+        echo "SET_COMMIT_MSG='feat: Convert .${{inputs.input_file_extension}} file(s) to ${{inputs.output_file_extension}}'" >> "$GITHUB_OUTPUT"
       shell: bash
     - if: ${{steps.get_files_to_regen.outputs.input_files_to_regen != '[]'}}
       uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321
@@ -285,22 +293,24 @@ runs:
       env:
         PKG_MANAGER: ${{inputs.pkg_manager}}
       run: |
-        ### Package manager teardown
-
         from subprocess import run
         from os import environ
 
-        pkg_manager_run_cmd = ""
 
-        if environ["PKG_MANAGER"] == "npm":
-            print("Nothing to teardown")
-        elif environ["PKG_MANAGER"] == "pnpm":
-            run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "true"])
-        elif environ["PKG_MANAGER"] == "yarn":
-            print("Nothing to teardown")
-        elif environ["PKG_MANAGER"] == "bun":
-            print("Nothing to teardown")
-        else:
-            run(["exit", "1"])
+        def teardown_pkg_manager(pkg_manager):
+            if pkg_manager == "npm":
+                print("Nothing to teardown")
+            elif pkg_manager == "pnpm":
+                run(["pnpm", "config", "set", "--location=project", "strictDepBuilds", "true"])
+            elif pkg_manager == "yarn":
+                print("Nothing to teardown")
+            elif pkg_manager == "bun":
+                print("Nothing to teardown")
+            else:
+                run(["exit", "1"])
+
+
+        if __name__ == "__main__":
+            teardown_pkg_manager(environ["PKG_MANAGER"])
       shell: python
       id: pkg_manager_teardown
